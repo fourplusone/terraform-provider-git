@@ -6,6 +6,23 @@
 
 Keep your git repositories in sync with your infrastructure. 
 
+## Install
+
+* Download `terraform-provider-git` binary from [Github](https://github.com/fourplusone/terraform-provider-git/releases)
+* Unzip the zip file
+* Then move `terraform-provider-git` binary to `$HOME/.terraform.d/plugins` directory
+
+```bash
+mkdir -p $HOME/.terraform.d/plugins
+mv terraform-provider-git $HOME/.terraform.d/plugins/terraform-provider-git
+```
+
+* Run `terraform init` in your terraform project
+
+```bash
+terraform init
+```
+
 ## Configuration
 
 - repository_url - (Required) The URL of the remote repository
