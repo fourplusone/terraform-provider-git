@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # define architecture we want to build
