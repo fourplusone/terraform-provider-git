@@ -34,7 +34,7 @@ for PLATFORM in $(find ./output -mindepth 1 -maxdepth 1 -type d); do
     echo "--> ${OSARCH}"
 
     pushd $PLATFORM >/dev/null 2>&1
-    zip ../terraform-provider-jira_${OSARCH}.zip ./*
+    zip ../terraform-provider-git_${OSARCH}.zip ./*
     popd >/dev/null 2>&1
 done
 
