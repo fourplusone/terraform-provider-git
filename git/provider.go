@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
+// Config Git Provider Configuration
 type Config struct {
 	cloneDir   string
 	repoLock   sync.Mutex
@@ -18,7 +20,8 @@ type Config struct {
 	signature  *object.Signature
 }
 
-func Provider() *schema.Provider {
+// Provider returns the Git Provider
+func Provider(ctx context.Context, wg *sync.WaitGroup) *schema.Provider {
 	p := schema.Provider{
 		DataSourcesMap: map[string]*schema.Resource{
 			"git_file": dataSourceGitFile(),
@@ -44,12 +47,12 @@ func Provider() *schema.Provider {
 			},
 		},
 	}
+	p.ConfigureFunc = configureProviderFunc(ctx, &p, wg)
 
-	p.ConfigureFunc = configureProviderFunc(&p)
 	return &p
 }
 
-func configureProviderFunc(p *schema.Provider) schema.ConfigureFunc {
+func configureProviderFunc(ctx context.Context, p *schema.Provider, wg *sync.WaitGroup) schema.ConfigureFunc {
 	return func(r *schema.ResourceData) (interface{}, error) {
 		options := &gogit.CloneOptions{
 			URL:          r.Get("repository_url").(string),
@@ -78,6 +81,13 @@ func configureProviderFunc(p *schema.Provider) schema.ConfigureFunc {
 				When:  time.Now(),
 			},
 		}
+
+		go func() {
+			wg.Add(1)
+			<-ctx.Done()
+			os.RemoveAll(cloneDir)
+			wg.Done()
+		}()
 
 		return config, nil
 	}
