@@ -146,11 +146,20 @@ func resourceGitFileCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	d.SetId(obj.Hash().String())
 
-	return resourceGitFileRead(d, m)
+	return resourceGitFileReadNoLock(d, m)
 
 }
 
 func resourceGitFileRead(d *schema.ResourceData, m interface{}) error {
+	config := m.(*Config)
+
+	config.repoLock.Lock()
+	defer config.repoLock.Unlock()
+
+	return resourceGitFileReadNoLock(d, m)
+}
+
+func resourceGitFileReadNoLock(d *schema.ResourceData, m interface{}) error {
 	config := m.(*Config)
 	repo := config.repository
 	path := d.Get("path").(string)
