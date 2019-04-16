@@ -27,7 +27,7 @@ type resolvedItem struct {
 // Combiner consolidates tasks
 type Combiner struct {
 	CombineFunc func(inputs []In) Out
-	channels    (chan Item)
+	Input       chan Item
 }
 
 // Announce a new Item which will be processed on the next run of the combiner
@@ -38,7 +38,7 @@ func (c *Combiner) Announce() (chan<- In, <-chan Out) {
 		Out: make(chan Out, 1),
 	}
 
-	go func() { c.channels <- item }()
+	go func() { c.Input <- item }()
 
 	return item.In, item.Out
 }
@@ -57,7 +57,7 @@ func (c *Combiner) DeliverSync(val In) Out {
 
 // Close stops processing any new Requests
 func (c *Combiner) Close() {
-	close(c.channels)
+	close(c.Input)
 }
 
 // Process must be called once and will start immideatly processing incoming
@@ -69,7 +69,7 @@ func (c *Combiner) Process() {
 		var inputs []In
 
 		// Collect all announced Items until the first one has fired
-		resolved := collectAndResolve(c.channels)
+		resolved := collectAndResolve(c.Input)
 
 		// Wait for all items to be collected
 		for item := range resolved {
