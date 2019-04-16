@@ -55,6 +55,8 @@ github.com/emirpasic/gods/utils
 github.com/emirpasic/gods/lists
 # github.com/fatih/color v1.7.0
 github.com/fatih/color
+# github.com/fourplusone/go-batches v0.0.0-20190415204024-a759ee36c336
+github.com/fourplusone/go-batches
 # github.com/golang/protobuf v1.2.0
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes

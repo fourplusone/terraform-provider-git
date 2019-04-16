@@ -7,17 +7,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fourplusone/go-batches"
 	"github.com/hashicorp/terraform/helper/schema"
 	gogit "gopkg.in/src-d/go-git.v4"
+
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
 // Config Git Provider Configuration
 type Config struct {
-	cloneDir   string
-	repoLock   sync.Mutex
-	repository *gogit.Repository
-	signature  *object.Signature
+	cloneDir     string
+	repoLock     sync.Mutex
+	pushCombiner batches.Combiner
+	repository   *gogit.Repository
+	signature    *object.Signature
 }
 
 // Provider returns the Git Provider
@@ -82,10 +85,34 @@ func configureProviderFunc(ctx context.Context, p *schema.Provider, wg *sync.Wai
 			},
 		}
 
+		config.pushCombiner = batches.Combiner{
+			CombineFunc: func([]batches.In) batches.Out {
+				config.repoLock.Lock()
+				defer config.repoLock.Unlock()
+
+				err := config.repository.Push(&gogit.PushOptions{})
+				if err == gogit.NoErrAlreadyUpToDate {
+					err = nil
+				}
+
+				return err
+			},
+			Input: make(chan batches.Item),
+		}
+
 		go func() {
+			// Start the Combiner
+			config.pushCombiner.Process()
+
+			// Add self to waitgroup to prevent program from terminating
 			wg.Add(1)
+
+			// Wait for context to be finished
 			<-ctx.Done()
+
 			os.RemoveAll(cloneDir)
+			config.pushCombiner.Close()
+
 			wg.Done()
 		}()
 

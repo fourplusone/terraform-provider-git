@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform/helper/schema"
-	gogit "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
@@ -56,15 +55,59 @@ func dataSourceGitFile() *schema.Resource {
 }
 
 func resourceGitFileCreate(d *schema.ResourceData, m interface{}) error {
+	config := m.(*Config)
+	pushReq, pushRes := config.pushCombiner.Announce()
+	defer close(pushReq)
+
+	config.repoLock.Lock()
+	err := resourceGitFileCreateNoLock(d, m)
+	config.repoLock.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	pushReq <- 1
+
+	err, _ = (<-pushRes).(error)
+	return err
+}
+
+func resourceGitFileRead(d *schema.ResourceData, m interface{}) error {
+	config := m.(*Config)
+
+	config.repoLock.Lock()
+	defer config.repoLock.Unlock()
+
+	return resourceGitFileReadNoLock(d, m)
+}
+
+func resourceGitFileDelete(d *schema.ResourceData, m interface{}) error {
+	config := m.(*Config)
+	pushReq, pushRes := config.pushCombiner.Announce()
+	defer close(pushReq)
+
+	config.repoLock.Lock()
+	err := resourceGitFileDeleteNoLock(d, m)
+	config.repoLock.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	pushReq <- 1
+
+	err, _ = (<-pushRes).(error)
+	return err
+}
+
+func resourceGitFileCreateNoLock(d *schema.ResourceData, m interface{}) error {
 
 	config := m.(*Config)
 
 	raw := []byte(d.Get("contents").(string))
 
 	repo := config.repository
-
-	config.repoLock.Lock()
-	defer config.repoLock.Unlock()
 
 	head, err := repo.Head()
 	if err != nil {
@@ -140,23 +183,10 @@ func resourceGitFileCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	///////////////
 
-	err = repo.Push(&gogit.PushOptions{})
-	if err != nil {
-		return err
-	}
 	d.SetId(obj.Hash().String())
 
 	return resourceGitFileReadNoLock(d, m)
 
-}
-
-func resourceGitFileRead(d *schema.ResourceData, m interface{}) error {
-	config := m.(*Config)
-
-	config.repoLock.Lock()
-	defer config.repoLock.Unlock()
-
-	return resourceGitFileReadNoLock(d, m)
 }
 
 func resourceGitFileReadNoLock(d *schema.ResourceData, m interface{}) error {
@@ -197,14 +227,11 @@ func resourceGitFileReadNoLock(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func resourceGitFileDelete(d *schema.ResourceData, m interface{}) error {
+func resourceGitFileDeleteNoLock(d *schema.ResourceData, m interface{}) error {
 	config := m.(*Config)
 	repo := config.repository
 	path := d.Get("path").(string)
 	s := repo.Storer
-
-	config.repoLock.Lock()
-	defer config.repoLock.Unlock()
 
 	head, err := repo.Head()
 	if err != nil {
@@ -260,8 +287,7 @@ func resourceGitFileDelete(d *schema.ResourceData, m interface{}) error {
 	}
 	///////////////
 
-	return repo.Push(&gogit.PushOptions{})
-
+	return nil
 }
 
 func writeFileToTree(path string, hash plumbing.Hash, root *object.Tree, s storage.Storer) (*plumbing.Hash, error) {
