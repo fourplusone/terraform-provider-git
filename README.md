@@ -1,5 +1,7 @@
 # terraform-provider-git
 
+__[Support this project on Patreon](https://www.patreon.com/fourplusone)__
+
 [![Build Status](https://travis-ci.com/fourplusone/terraform-provider-git.svg?token=Uozu8nkCaipWW1259XXD&branch=master)](https://travis-ci.com/fourplusone/terraform-provider-git)
 
 ## Rationale
